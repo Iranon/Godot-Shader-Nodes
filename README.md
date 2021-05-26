@@ -1,5 +1,5 @@
 # Godot-Shader-Nodes
-### Custom nodes for Godot Visual Shader
+### Custom nodes for the Godot Visual Shader editor
 
 Inside the custom folder there are two directories: nodes and shaders. The first one contains .gd files that define custom nodes for the Visual Shader, while the second one contains materials (.tres) that are made inside the Visual Shader with GlobalExpression and Expression nodes.
 
