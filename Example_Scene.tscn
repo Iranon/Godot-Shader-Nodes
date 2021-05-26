@@ -1,0 +1,449 @@
+[gd_scene load_steps=41 format=2]
+
+[ext_resource path="res://custom/nodes/wave_texture.gd" type="Script" id=1]
+[ext_resource path="res://custom/shaders/wave_texture.tres" type="Shader" id=2]
+[ext_resource path="res://custom/shaders/voronoi_texture.tres" type="Shader" id=3]
+[ext_resource path="res://custom/nodes/voronoi_texture.gd" type="Script" id=4]
+[ext_resource path="res://custom/shaders/map_stepped_linear.tres" type="Shader" id=5]
+[ext_resource path="res://custom/nodes/map_stepped_linear.gd" type="Script" id=6]
+
+[sub_resource type="SphereMesh" id=1]
+
+[sub_resource type="ShaderMaterial" id=2]
+shader = ExtResource( 2 )
+
+[sub_resource type="CubeMesh" id=3]
+
+[sub_resource type="VisualShaderNodeInput" id=4]
+input_name = "camera"
+
+[sub_resource type="VisualShaderNodeTransformVecMult" id=5]
+
+[sub_resource type="VisualShaderNodeCustom" id=6]
+initialized = true
+script = ExtResource( 1 )
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=7]
+constant = 2.3
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=8]
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=9]
+constant = 8.3
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=10]
+constant = 1.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=11]
+constant = 2.0
+
+[sub_resource type="VisualShaderNodeInput" id=12]
+input_name = "vertex"
+
+[sub_resource type="VisualShader" id=13]
+code = "shader_type spatial;
+render_mode specular_schlick_ggx;
+
+
+
+// WaveTexture
+
+		const float TAU = 6.28318530718;
+
+		/* Generic Noise 3 (hash based) by PatricioGonzalezVivo
+		@ https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+		|----------------------------------------------------------------*/
+		float hash(float n) {
+			return fract(sin(n) * 1e4);
+			}
+		/*<https://www.shadertoy.com/view/4dS3Wd>
+		By Morgan McGuire @morgan3d, http://graphicscodex.com*/
+
+		float hashNoise3(vec3 x) {
+			const vec3 step = vec3(110, 241, 171);
+
+			vec3 i = floor(x);
+			vec3 f = fract(x);
+		 
+			float n = dot(i, step);
+
+			vec3 u = f * f * (3.0 - 2.0 * f);
+			return mix(mix(mix( hash(n + dot(step, vec3(0, 0, 0))), hash(n + dot(step, vec3(1, 0, 0))), u.x),
+						   mix( hash(n + dot(step, vec3(0, 1, 0))), hash(n + dot(step, vec3(1, 1, 0))), u.x), u.y),
+					   mix(mix( hash(n + dot(step, vec3(0, 0, 1))), hash(n + dot(step, vec3(1, 0, 1))), u.x),
+						   mix( hash(n + dot(step, vec3(0, 1, 1))), hash(n + dot(step, vec3(1, 1, 1))), u.x), u.y), u.z);
+		}
+
+
+		/* === Based on The Blender Foundation shader
+		@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_tex_wave.glsl
+		______________________________________________________________________________________________________________________________________*/
+
+		/* [ type = 0 (rings) | type = 1 (bands) ], [ profile = 0 (sine) | profile = 1 (saw) | profile = 2 (triangle) ] */
+		float waveTexture(vec3 point_in, float scale, int type, float distortion, float phase, int profile) {
+			point_in = (point_in + 0.000001) * 0.999999; //prevent precision issues on unit coordinates
+			point_in = (scale != 0.0) ? (point_in * scale) : point_in;
+			float n = 0.0;
+
+			/*-Type: rings (Spherical) */
+			if (type == 0) {
+				vec3 rp = point_in;
+				n = length(rp) * 20.0;
+			}
+			/*-Type: bands (Diagonal)*/
+			else if (type == 1) {
+				n = (point_in.x + point_in.y + point_in.z) * 10.0;
+			}
+
+			n += phase;
+			if (distortion != 0.0) {
+				n = n + (distortion * hashNoise3(point_in) * 2.0 - 1.0);
+			}
+
+			/*-Profile: sine */
+			if (profile == 0) {
+				return 0.5 + 0.5 * sin(n - TAU);
+			}
+
+			/*-Profile: saw */
+			else if (profile == 1) {
+				n /= TAU ;
+				return n - floor(n);
+			}
+
+			else {
+				n /= TAU;
+				return abs(n - floor(n + 0.5)) * 2.0;
+			}
+		}
+	
+
+void vertex() {
+// Output:0
+
+}
+
+void fragment() {
+// Input:10
+	mat4 n_out10p0 = CAMERA_MATRIX;
+
+// Input:9
+	vec3 n_out9p0 = VERTEX;
+
+// TransformVectorMult:11
+	vec3 n_out11p0 = (n_out10p0 * vec4(n_out9p0, 1.0)).xyz;
+
+// Scalar:13
+	float n_out13p0 = 2.300000;
+
+// Scalar:4
+	float n_out4p0 = 0.000000;
+
+// Scalar:5
+	float n_out5p0 = 8.300000;
+
+// Scalar:6
+	float n_out6p0 = 1.000000;
+
+// Scalar:7
+	float n_out7p0 = 2.000000;
+
+// WaveTexture:12
+	float n_out12p0;
+	{
+		n_out12p0 = waveTexture(n_out11p0, n_out13p0, int(n_out4p0), n_out5p0, n_out6p0, int(n_out7p0));
+	}
+
+// Output:0
+	ALBEDO = vec3(n_out12p0);
+
+}
+
+void light() {
+// Output:0
+
+}
+"
+graph_offset = Vector2( -522.337, 128.6 )
+nodes/fragment/0/position = Vector2( 100, 140 )
+nodes/fragment/4/node = SubResource( 8 )
+nodes/fragment/4/position = Vector2( -500, 260 )
+nodes/fragment/5/node = SubResource( 9 )
+nodes/fragment/5/position = Vector2( -480, 340 )
+nodes/fragment/6/node = SubResource( 10 )
+nodes/fragment/6/position = Vector2( -480, 420 )
+nodes/fragment/7/node = SubResource( 11 )
+nodes/fragment/7/position = Vector2( -480, 520 )
+nodes/fragment/9/node = SubResource( 12 )
+nodes/fragment/9/position = Vector2( -820, 120 )
+nodes/fragment/10/node = SubResource( 4 )
+nodes/fragment/10/position = Vector2( -800, 40 )
+nodes/fragment/11/node = SubResource( 5 )
+nodes/fragment/11/position = Vector2( -560, 40 )
+nodes/fragment/12/node = SubResource( 6 )
+nodes/fragment/12/position = Vector2( -200, 180 )
+nodes/fragment/13/node = SubResource( 7 )
+nodes/fragment/13/position = Vector2( -500, 180 )
+nodes/fragment/connections = PoolIntArray( 10, 0, 11, 0, 9, 0, 11, 1, 7, 0, 12, 5, 6, 0, 12, 4, 5, 0, 12, 3, 4, 0, 12, 2, 11, 0, 12, 0, 13, 0, 12, 1, 12, 0, 0, 0 )
+
+[sub_resource type="ShaderMaterial" id=14]
+shader = SubResource( 13 )
+
+[sub_resource type="CapsuleMesh" id=15]
+
+[sub_resource type="ShaderMaterial" id=16]
+shader = ExtResource( 3 )
+
+[sub_resource type="CylinderMesh" id=17]
+
+[sub_resource type="VisualShaderNodeInput" id=18]
+input_name = "camera"
+
+[sub_resource type="VisualShaderNodeTransformVecMult" id=19]
+
+[sub_resource type="VisualShaderNodeInput" id=20]
+input_name = "vertex"
+
+[sub_resource type="VisualShaderNodeCustom" id=21]
+initialized = true
+script = ExtResource( 6 )
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=22]
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=23]
+constant = 1.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=24]
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=25]
+constant = 1.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=26]
+constant = 3.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=27]
+constant = 6.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=28]
+constant = 0.9
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=29]
+constant = 0.02
+
+[sub_resource type="VisualShaderNodeCustom" id=30]
+initialized = true
+script = ExtResource( 4 )
+
+[sub_resource type="VisualShader" id=31]
+code = "shader_type spatial;
+render_mode specular_schlick_ggx;
+
+
+
+// VoronoiTexture
+
+		/* Generic Noise 3 by PatricioGonzalezVivo
+		@ https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+		|----------------------------------------------------------------*/
+		vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+		vec4 perm(vec4 x){return mod289(((x * 34.0) + 1.0) * x);}
+
+		float noise3(vec3 p){
+			vec3 a = floor(p);
+			vec3 d = p - a;
+			d = d * d * (3.0 - 2.0 * d);
+
+			vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
+			vec4 k1 = perm(b.xyxy);
+			vec4 k2 = perm(k1.xyxy + b.zzww);
+
+			vec4 c = k2 + a.zzzz;
+			vec4 k3 = perm(c);
+			vec4 k4 = perm(c + 1.0);
+
+			vec4 o1 = fract(k3 * (1.0 / 41.0));
+			vec4 o2 = fract(k4 * (1.0 / 41.0));
+
+			vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
+			vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
+
+			return o4.y * d.y + o4.x * (1.0 - d.y);
+		}
+
+
+		/* === Based on The Blender Foundation shader
+		@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_tex_voronoi.glsl
+		_________________________________________________________________________________________________________________________________________*/
+
+		/*_ Voronoi func _*/
+
+		float smoothVoronoi(vec3 coords, float scale, float randomness, float smoothness) {
+			randomness = clamp(randomness, 0.0, 1.0);
+			smoothness = clamp(smoothness/2.0,  0.0, 0.5);
+			vec3 cell_position = floor(coords * scale);
+			vec3 local_position = (coords * scale) - floor(coords * scale);
+
+			float smooth_distance = 8.0;
+			vec3 smooth_position = vec3(0.0);
+
+			for (int k = -2; k <= 2; k++) {
+				for (int j = -2; j <= 2; j++) {
+					for (int i = -2; i <= 2; i++) {
+						
+						vec3 cell_offset = vec3(float(i), float(j), float(k));
+						vec3 point_position = cell_offset + noise3(cell_position + cell_offset) * randomness;
+						float distance_to_point = distance(point_position, local_position);
+						float h = smoothstep(0.0, 1.0, 0.5 + 0.5 * (smooth_distance - distance_to_point) / smoothness);
+						float correction_factor = smoothness * h * (1.0 - h);
+						smooth_distance = mix(smooth_distance, distance_to_point, h) - correction_factor;
+
+					}
+				}
+			}
+			return smooth_distance;
+		}
+	
+// MapSteppedLinear
+
+		/* === Based on The Blender Foundation shader
+		@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_map_range.glsl
+		_______________________________________________________________________________________________________________________________________*/
+
+		float steppedLinear(float value, float from_min, float from_max, float to_min, float to_max, float steps) {
+			float result = 0.0;
+			
+			if (from_max != from_min) {
+				float factor = (value - from_min) / (from_max - from_min);
+				factor = (steps > 0.0) ? floor(factor * (steps + 1.0)) / steps : 0.0;
+				result = to_min + factor * (to_max - to_min);
+			}
+
+			return result;
+		}
+	
+
+void vertex() {
+// Output:0
+
+}
+
+void fragment() {
+// Input:11
+	mat4 n_out11p0 = CAMERA_MATRIX;
+
+// Input:15
+	vec3 n_out15p0 = VERTEX;
+
+// TransformVectorMult:14
+	vec3 n_out14p0 = (n_out11p0 * vec4(n_out15p0, 1.0)).xyz;
+
+// Scalar:4
+	float n_out4p0 = 6.000000;
+
+// Scalar:5
+	float n_out5p0 = 0.900000;
+
+// Scalar:6
+	float n_out6p0 = 0.020000;
+
+// VoronoiTexture:7
+	float n_out7p0;
+	{
+		n_out7p0 = smoothVoronoi(n_out14p0, n_out4p0, n_out5p0, n_out6p0);
+	}
+
+// Scalar:17
+	float n_out17p0 = 0.000000;
+
+// Scalar:18
+	float n_out18p0 = 1.000000;
+
+// Scalar:19
+	float n_out19p0 = 0.000000;
+
+// Scalar:20
+	float n_out20p0 = 1.000000;
+
+// Scalar:21
+	float n_out21p0 = 3.000000;
+
+// MapSteppedLinear:16
+	float n_out16p0;
+	{
+		n_out16p0 = steppedLinear(n_out7p0, n_out17p0, n_out18p0, n_out19p0, n_out20p0, n_out21p0);
+	}
+
+// Output:0
+	ALBEDO = vec3(n_out16p0);
+
+}
+
+void light() {
+// Output:0
+
+}
+"
+graph_offset = Vector2( -416.337, 285.6 )
+nodes/fragment/0/position = Vector2( 360, 200 )
+nodes/fragment/4/node = SubResource( 27 )
+nodes/fragment/4/position = Vector2( -280, 240 )
+nodes/fragment/5/node = SubResource( 28 )
+nodes/fragment/5/position = Vector2( -280, 320 )
+nodes/fragment/6/node = SubResource( 29 )
+nodes/fragment/6/position = Vector2( -280, 400 )
+nodes/fragment/7/node = SubResource( 30 )
+nodes/fragment/7/position = Vector2( 0, 200 )
+nodes/fragment/11/node = SubResource( 18 )
+nodes/fragment/11/position = Vector2( -600, 100 )
+nodes/fragment/14/node = SubResource( 19 )
+nodes/fragment/14/position = Vector2( -400, 100 )
+nodes/fragment/15/node = SubResource( 20 )
+nodes/fragment/15/position = Vector2( -620, 200 )
+nodes/fragment/16/node = SubResource( 21 )
+nodes/fragment/16/position = Vector2( -20, 460 )
+nodes/fragment/17/node = SubResource( 22 )
+nodes/fragment/17/position = Vector2( -500, 480 )
+nodes/fragment/18/node = SubResource( 23 )
+nodes/fragment/18/position = Vector2( -500, 560 )
+nodes/fragment/19/node = SubResource( 24 )
+nodes/fragment/19/position = Vector2( -500, 640 )
+nodes/fragment/20/node = SubResource( 25 )
+nodes/fragment/20/position = Vector2( -500, 720 )
+nodes/fragment/21/node = SubResource( 26 )
+nodes/fragment/21/position = Vector2( -500, 800 )
+nodes/fragment/connections = PoolIntArray( 4, 0, 7, 1, 5, 0, 7, 2, 6, 0, 7, 3, 11, 0, 14, 0, 15, 0, 14, 1, 14, 0, 7, 0, 7, 0, 16, 0, 16, 0, 0, 0, 17, 0, 16, 1, 18, 0, 16, 2, 19, 0, 16, 3, 20, 0, 16, 4, 21, 0, 16, 5 )
+
+[sub_resource type="ShaderMaterial" id=32]
+shader = SubResource( 31 )
+
+[sub_resource type="PlaneMesh" id=33]
+
+[sub_resource type="ShaderMaterial" id=34]
+shader = ExtResource( 5 )
+
+[node name="Spatial" type="Spatial"]
+
+[node name="MeshInstance" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -2.67453, 0.743046, -0.126437 )
+mesh = SubResource( 1 )
+material/0 = SubResource( 2 )
+
+[node name="MeshInstance2" type="MeshInstance" parent="."]
+transform = Transform( 0.848048, 0, -0.529919, 0, 1, 0, 0.529919, 0, 0.848048, 0.420884, 0, -1.51965 )
+mesh = SubResource( 3 )
+material/0 = SubResource( 14 )
+
+[node name="MeshInstance3" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.237166, -2.22261, 0.216754 )
+mesh = SubResource( 15 )
+material/0 = SubResource( 16 )
+
+[node name="MeshInstance4" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -3.10215, -2.29919, -0.667142 )
+mesh = SubResource( 17 )
+material/0 = SubResource( 32 )
+
+[node name="MeshInstance5" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1657, -0.668557, 1.08724 )
+mesh = SubResource( 33 )
+material/0 = SubResource( 34 )

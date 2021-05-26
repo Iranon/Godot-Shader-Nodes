@@ -1,0 +1,319 @@
+[gd_resource type="VisualShader" load_steps=11 format=2]
+
+[sub_resource type="VisualShaderNodeGlobalExpression" id=1]
+size = Vector2( 825, 546 )
+expression = "const float TAU = 6.28318530718;
+
+/* Generic Noise 3 (hash based) by PatricioGonzalezVivo
+@ https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+|----------------------------------------------------------------*/
+float hash(float n) {
+	return fract(sin(n) * 1e4);
+	}
+/*<https://www.shadertoy.com/view/4dS3Wd>
+By Morgan McGuire @morgan3d, http://graphicscodex.com*/
+
+float hashNoise3(vec3 x) {
+	const vec3 step = vec3(110, 241, 171);
+
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+ 
+    float n = dot(i, step);
+
+	vec3 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix( hash(n + dot(step, vec3(0, 0, 0))), hash(n + dot(step, vec3(1, 0, 0))), u.x),
+                   mix( hash(n + dot(step, vec3(0, 1, 0))), hash(n + dot(step, vec3(1, 1, 0))), u.x), u.y),
+               mix(mix( hash(n + dot(step, vec3(0, 0, 1))), hash(n + dot(step, vec3(1, 0, 1))), u.x),
+                   mix( hash(n + dot(step, vec3(0, 1, 1))), hash(n + dot(step, vec3(1, 1, 1))), u.x), u.y), u.z);
+}
+
+
+/* === Based on The Blender Foundation shader
+@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_tex_wave.glsl
+______________________________________________________________________________________________________________________________________*/
+
+/* [ type = 0 (rings) | type = 1 (bands) ], [ profile = 0 (sine) | profile = 1 (saw) | profile = 2 (triangle) ] */
+float waveTexture(vec3 point_in, float scale, int type, float distortion, float phase, int profile) {
+    point_in = (point_in + 0.000001) * 0.999999; //prevent precision issues on unit coordinates
+    point_in = (scale != 0.0) ? (point_in * scale) : point_in;
+    float n = 0.0;
+
+    /*-Type: rings (Spherical) */
+    if (type == 0) {
+        vec3 rp = point_in;
+        n = length(rp) * 20.0;
+    }
+    /*-Type: bands (Diagonal)*/
+    else if (type == 1) {
+        n = (point_in.x + point_in.y + point_in.z) * 10.0;
+    }
+
+    n += phase;
+    if (distortion != 0.0) {
+        n = n + (distortion * hashNoise3(point_in) * 2.0 - 1.0);
+    }
+
+    /*-Profile: sine */
+    if (profile == 0) {
+        return 0.5 + 0.5 * sin(n - TAU);
+    }
+
+    /*-Profile: saw */
+    else if (profile == 1) {
+        n /= TAU ;
+        return n - floor(n);
+    }
+
+    else {
+        n /= TAU;
+        return abs(n - floor(n + 0.5)) * 2.0;
+    }
+}"
+
+[sub_resource type="VisualShaderNodeTransformVecMult" id=2]
+
+[sub_resource type="VisualShaderNodeInput" id=3]
+input_name = "camera"
+
+[sub_resource type="VisualShaderNodeInput" id=4]
+input_name = "vertex"
+
+[sub_resource type="VisualShaderNodeExpression" id=5]
+size = Vector2( 950, 371 )
+expression = "Fac = waveTexture(Vector, Scale, int(Type), Distortion, Phase, int(Profile));"
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=6]
+constant = 1.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=7]
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=8]
+constant = 8.3
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=9]
+constant = 1.0
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=10]
+
+[resource]
+code = "shader_type spatial;
+render_mode specular_schlick_ggx;
+
+
+
+// GlobalExpression:0
+	const float TAU = 6.28318530718;
+	
+	/* Generic Noise 3 (hash based) by PatricioGonzalezVivo
+	@ https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+	|----------------------------------------------------------------*/
+	float hash(float n) {
+		return fract(sin(n) * 1e4);
+		}
+	/*<https://www.shadertoy.com/view/4dS3Wd>
+	By Morgan McGuire @morgan3d, http://graphicscodex.com*/
+	
+	float hashNoise3(vec3 x) {
+		const vec3 step = vec3(110, 241, 171);
+	
+		vec3 i = floor(x);
+		vec3 f = fract(x);
+	 
+	    float n = dot(i, step);
+	
+		vec3 u = f * f * (3.0 - 2.0 * f);
+		return mix(mix(mix( hash(n + dot(step, vec3(0, 0, 0))), hash(n + dot(step, vec3(1, 0, 0))), u.x),
+	                   mix( hash(n + dot(step, vec3(0, 1, 0))), hash(n + dot(step, vec3(1, 1, 0))), u.x), u.y),
+	               mix(mix( hash(n + dot(step, vec3(0, 0, 1))), hash(n + dot(step, vec3(1, 0, 1))), u.x),
+	                   mix( hash(n + dot(step, vec3(0, 1, 1))), hash(n + dot(step, vec3(1, 1, 1))), u.x), u.y), u.z);
+	}
+	
+	
+	/* === Based on The Blender Foundation shader
+	@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_tex_wave.glsl
+	______________________________________________________________________________________________________________________________________*/
+	
+	/* [ type = 0 (rings) | type = 1 (bands) ], [ profile = 0 (sine) | profile = 1 (saw) | profile = 2 (triangle) ] */
+	float waveTexture(vec3 point_in, float scale, int type, float distortion, float phase, int profile) {
+	    point_in = (point_in + 0.000001) * 0.999999; //prevent precision issues on unit coordinates
+	    point_in = (scale != 0.0) ? (point_in * scale) : point_in;
+	    float n = 0.0;
+	
+	    /*-Type: rings (Spherical) */
+	    if (type == 0) {
+	        vec3 rp = point_in;
+	        n = length(rp) * 20.0;
+	    }
+	    /*-Type: bands (Diagonal)*/
+	    else if (type == 1) {
+	        n = (point_in.x + point_in.y + point_in.z) * 10.0;
+	    }
+	
+	    n += phase;
+	    if (distortion != 0.0) {
+	        n = n + (distortion * hashNoise3(point_in) * 2.0 - 1.0);
+	    }
+	
+	    /*-Profile: sine */
+	    if (profile == 0) {
+	        return 0.5 + 0.5 * sin(n - TAU);
+	    }
+	
+	    /*-Profile: saw */
+	    else if (profile == 1) {
+	        n /= TAU ;
+	        return n - floor(n);
+	    }
+	
+	    else {
+	        n /= TAU;
+	        return abs(n - floor(n + 0.5)) * 2.0;
+	    }
+	}
+
+void vertex() {
+// Output:0
+
+}
+
+void fragment() {
+// Input:12
+	mat4 n_out12p0 = CAMERA_MATRIX;
+
+// Input:13
+	vec3 n_out13p0 = VERTEX;
+
+// TransformVectorMult:11
+	vec3 n_out11p0 = (n_out12p0 * vec4(n_out13p0, 1.0)).xyz;
+
+// Scalar:17
+	float n_out17p0 = 1.000000;
+
+// Scalar:6
+	float n_out6p0 = 0.000000;
+
+// Scalar:7
+	float n_out7p0 = 8.300000;
+
+// Scalar:8
+	float n_out8p0 = 1.000000;
+
+// Scalar:9
+	float n_out9p0 = 0.000000;
+
+// Expression:16
+	float n_out16p0;
+	n_out16p0 = 0.0;
+	{
+		n_out16p0 = waveTexture(n_out11p0, n_out17p0, int(n_out6p0), n_out7p0, n_out8p0, int(n_out9p0));
+	}
+
+// Output:0
+	ALBEDO = vec3(n_out16p0);
+
+}
+
+void light() {
+// Output:0
+
+}
+"
+graph_offset = Vector2( -1065, 352 )
+nodes/fragment/0/position = Vector2( 120, 500 )
+nodes/fragment/6/node = SubResource( 7 )
+nodes/fragment/6/position = Vector2( -1420, 740 )
+nodes/fragment/7/node = SubResource( 8 )
+nodes/fragment/7/position = Vector2( -1420, 820 )
+nodes/fragment/8/node = SubResource( 9 )
+nodes/fragment/8/position = Vector2( -1420, 900 )
+nodes/fragment/9/node = SubResource( 10 )
+nodes/fragment/9/position = Vector2( -1420, 980 )
+nodes/fragment/10/node = SubResource( 1 )
+nodes/fragment/10/position = Vector2( -960, -40 )
+nodes/fragment/10/size = Vector2( 825, 546 )
+nodes/fragment/10/input_ports = ""
+nodes/fragment/10/output_ports = ""
+nodes/fragment/10/expression = "const float TAU = 6.28318530718;
+
+/* Generic Noise 3 (hash based) by PatricioGonzalezVivo
+@ https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+|----------------------------------------------------------------*/
+float hash(float n) {
+	return fract(sin(n) * 1e4);
+	}
+/*<https://www.shadertoy.com/view/4dS3Wd>
+By Morgan McGuire @morgan3d, http://graphicscodex.com*/
+
+float hashNoise3(vec3 x) {
+	const vec3 step = vec3(110, 241, 171);
+
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+ 
+    float n = dot(i, step);
+
+	vec3 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix( hash(n + dot(step, vec3(0, 0, 0))), hash(n + dot(step, vec3(1, 0, 0))), u.x),
+                   mix( hash(n + dot(step, vec3(0, 1, 0))), hash(n + dot(step, vec3(1, 1, 0))), u.x), u.y),
+               mix(mix( hash(n + dot(step, vec3(0, 0, 1))), hash(n + dot(step, vec3(1, 0, 1))), u.x),
+                   mix( hash(n + dot(step, vec3(0, 1, 1))), hash(n + dot(step, vec3(1, 1, 1))), u.x), u.y), u.z);
+}
+
+
+/* === Based on The Blender Foundation shader
+@ https://git.blender.org/gitweb/gitweb.cgi/blender.git/blob/HEAD:/source/blender/gpu/shaders/material/gpu_shader_material_tex_wave.glsl
+______________________________________________________________________________________________________________________________________*/
+
+/* [ type = 0 (rings) | type = 1 (bands) ], [ profile = 0 (sine) | profile = 1 (saw) | profile = 2 (triangle) ] */
+float waveTexture(vec3 point_in, float scale, int type, float distortion, float phase, int profile) {
+    point_in = (point_in + 0.000001) * 0.999999; //prevent precision issues on unit coordinates
+    point_in = (scale != 0.0) ? (point_in * scale) : point_in;
+    float n = 0.0;
+
+    /*-Type: rings (Spherical) */
+    if (type == 0) {
+        vec3 rp = point_in;
+        n = length(rp) * 20.0;
+    }
+    /*-Type: bands (Diagonal)*/
+    else if (type == 1) {
+        n = (point_in.x + point_in.y + point_in.z) * 10.0;
+    }
+
+    n += phase;
+    if (distortion != 0.0) {
+        n = n + (distortion * hashNoise3(point_in) * 2.0 - 1.0);
+    }
+
+    /*-Profile: sine */
+    if (profile == 0) {
+        return 0.5 + 0.5 * sin(n - TAU);
+    }
+
+    /*-Profile: saw */
+    else if (profile == 1) {
+        n /= TAU ;
+        return n - floor(n);
+    }
+
+    else {
+        n /= TAU;
+        return abs(n - floor(n + 0.5)) * 2.0;
+    }
+}"
+nodes/fragment/11/node = SubResource( 2 )
+nodes/fragment/11/position = Vector2( -1460, 500 )
+nodes/fragment/12/node = SubResource( 3 )
+nodes/fragment/12/position = Vector2( -1700, 480 )
+nodes/fragment/13/node = SubResource( 4 )
+nodes/fragment/13/position = Vector2( -1720, 600 )
+nodes/fragment/16/node = SubResource( 5 )
+nodes/fragment/16/position = Vector2( -1000, 560 )
+nodes/fragment/16/size = Vector2( 950, 371 )
+nodes/fragment/16/input_ports = "0,1,Vector;1,0,Scale;2,0,Type;3,0,Distortion;4,0,Phase;5,0,Profile;"
+nodes/fragment/16/output_ports = "0,0,Fac;"
+nodes/fragment/16/expression = "Fac = waveTexture(Vector, Scale, int(Type), Distortion, Phase, int(Profile));"
+nodes/fragment/17/node = SubResource( 6 )
+nodes/fragment/17/position = Vector2( -1420, 640 )
+nodes/fragment/connections = PoolIntArray( 12, 0, 11, 0, 13, 0, 11, 1, 9, 0, 16, 5, 8, 0, 16, 4, 7, 0, 16, 3, 6, 0, 16, 2, 11, 0, 16, 0, 17, 0, 16, 1, 16, 0, 0, 0 )
