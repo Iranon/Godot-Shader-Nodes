@@ -1,0 +1,326 @@
+[gd_resource type="VisualShader" load_steps=6 format=2]
+
+[sub_resource type="VisualShaderNodeGlobalExpression" id=1]
+size = Vector2( 837, 477 )
+expression = "/*===========================================
+- From https://www.shadertoy.com/view/WtsyW2
+|
+Main references and functions from https://thebookofshaders.com/13/ and https://www.iquilezles.org/www/articles/warp/warp.htm
+|
+===========================================*/
+
+
+//- 2D Random and Noise functions
+
+float rand(in vec2 sd) {
+    
+    return fract( sin( dot( sd.xy, vec2(9.128, 3.256) * 293699.963 ) ) );
+}
+
+float n2D(in vec2 sd) {
+    
+    vec2 iComp = floor(sd);
+    						//integer and fractional components
+    vec2 fComp = fract(sd);
+    
+    
+    float a = rand(iComp + vec2(0.0, 0.0));	//
+    float b = rand(iComp + vec2(1.0, 0.0));	// interpolation points
+    float c = rand(iComp + vec2(0.0, 1.0));	// (4 corners)
+    float d = rand(iComp + vec2(1.0, 1.0));	//
+    
+    vec2 fac = smoothstep(0.0, 1.0, fComp);	//interpolation factor
+    
+    //Quad corners interpolation
+    return
+        mix(a, b, fac.x) +
+		
+        	(c - a) * fac.y * (1.0 - fac.x) +
+        
+        		(d - b) * fac.x * fac.y ;
+}
+
+
+//- Fractal Brownian Motion and Motion Pattern
+
+const int OCTAVES = 6;
+
+float fBm(in vec2 sd) {
+    
+    //init values
+    float val = 0.0;
+    float freq = 1.0;
+    float amp = 0.5;
+    
+    float lacunarity = 2.0;
+    float gain = 0.5;
+    
+    //Octaves iterations
+    for(int i = 0; i < OCTAVES; i++) {
+        
+        val += amp * n2D(sd * freq);
+        
+        freq *= lacunarity;
+        amp *= gain;
+    }
+    
+    return val;
+}
+
+
+float mp(in vec2 p, float scale, float time) {
+    
+	p *= scale;
+    float qx = fBm(p + vec2(0.0, 0.0));
+    float qy = fBm(p + vec2(6.8, 2.4));
+    
+    vec2 q = vec2(qx,qy);
+    
+    float tm = 0.008 * time * 1.3;	//time factor
+    
+    float rx = fBm(p + 1.1 * q + vec2(9.5, 9.3) * tm);
+    float ry = fBm(p + 1.5 * q + vec2(7.2, 1.5) * -(tm + 0.002));
+    
+    vec2 r = vec2(rx, ry);
+    
+    return fBm(p + (2.0 * r));
+}"
+
+[sub_resource type="VisualShaderNodeExpression" id=2]
+size = Vector2( 616, 308 )
+expression = "Color = vec3(mp(Vector.xy, Scale, Time));"
+
+[sub_resource type="VisualShaderNodeInput" id=3]
+input_name = "uv"
+
+[sub_resource type="VisualShaderNodeInput" id=4]
+input_name = "time"
+
+[sub_resource type="VisualShaderNodeScalarConstant" id=5]
+constant = 1.0
+
+[resource]
+code = "shader_type spatial;
+render_mode specular_schlick_ggx;
+
+
+
+// GlobalExpression:0
+	/*===========================================
+	- From https://www.shadertoy.com/view/WtsyW2
+	|
+	Main references and functions from https://thebookofshaders.com/13/ and https://www.iquilezles.org/www/articles/warp/warp.htm
+	|
+	===========================================*/
+	
+	
+	//- 2D Random and Noise functions
+	
+	float rand(in vec2 sd) {
+	    
+	    return fract( sin( dot( sd.xy, vec2(9.128, 3.256) * 293699.963 ) ) );
+	}
+	
+	float n2D(in vec2 sd) {
+	    
+	    vec2 iComp = floor(sd);
+	    						//integer and fractional components
+	    vec2 fComp = fract(sd);
+	    
+	    
+	    float a = rand(iComp + vec2(0.0, 0.0));	//
+	    float b = rand(iComp + vec2(1.0, 0.0));	// interpolation points
+	    float c = rand(iComp + vec2(0.0, 1.0));	// (4 corners)
+	    float d = rand(iComp + vec2(1.0, 1.0));	//
+	    
+	    vec2 fac = smoothstep(0.0, 1.0, fComp);	//interpolation factor
+	    
+	    //Quad corners interpolation
+	    return
+	        mix(a, b, fac.x) +
+			
+	        	(c - a) * fac.y * (1.0 - fac.x) +
+	        
+	        		(d - b) * fac.x * fac.y ;
+	}
+	
+	
+	//- Fractal Brownian Motion and Motion Pattern
+	
+	const int OCTAVES = 6;
+	
+	float fBm(in vec2 sd) {
+	    
+	    //init values
+	    float val = 0.0;
+	    float freq = 1.0;
+	    float amp = 0.5;
+	    
+	    float lacunarity = 2.0;
+	    float gain = 0.5;
+	    
+	    //Octaves iterations
+	    for(int i = 0; i < OCTAVES; i++) {
+	        
+	        val += amp * n2D(sd * freq);
+	        
+	        freq *= lacunarity;
+	        amp *= gain;
+	    }
+	    
+	    return val;
+	}
+	
+	
+	float mp(in vec2 p, float scale, float time) {
+	    
+		p *= scale;
+	    float qx = fBm(p + vec2(0.0, 0.0));
+	    float qy = fBm(p + vec2(6.8, 2.4));
+	    
+	    vec2 q = vec2(qx,qy);
+	    
+	    float tm = 0.008 * time * 1.3;	//time factor
+	    
+	    float rx = fBm(p + 1.1 * q + vec2(9.5, 9.3) * tm);
+	    float ry = fBm(p + 1.5 * q + vec2(7.2, 1.5) * -(tm + 0.002));
+	    
+	    vec2 r = vec2(rx, ry);
+	    
+	    return fBm(p + (2.0 * r));
+	}
+
+void vertex() {
+// Output:0
+
+}
+
+void fragment() {
+// Input:4
+	vec3 n_out4p0 = vec3(UV, 0.0);
+
+// Scalar:6
+	float n_out6p0 = 1.000000;
+
+// Input:5
+	float n_out5p0 = TIME;
+
+// Expression:3
+	vec3 n_out3p0;
+	n_out3p0 = vec3(0.0, 0.0, 0.0);
+	{
+		n_out3p0 = vec3(mp(n_out4p0.xy, n_out6p0, n_out5p0));
+	}
+
+// Output:0
+	ALBEDO = n_out3p0;
+
+}
+
+void light() {
+// Output:0
+
+}
+"
+graph_offset = Vector2( -368.827, 77.38 )
+nodes/fragment/2/node = SubResource( 1 )
+nodes/fragment/2/position = Vector2( -540, -220 )
+nodes/fragment/2/size = Vector2( 837, 477 )
+nodes/fragment/2/input_ports = ""
+nodes/fragment/2/output_ports = ""
+nodes/fragment/2/expression = "/*===========================================
+- From https://www.shadertoy.com/view/WtsyW2
+|
+Main references and functions from https://thebookofshaders.com/13/ and https://www.iquilezles.org/www/articles/warp/warp.htm
+|
+===========================================*/
+
+
+//- 2D Random and Noise functions
+
+float rand(in vec2 sd) {
+    
+    return fract( sin( dot( sd.xy, vec2(9.128, 3.256) * 293699.963 ) ) );
+}
+
+float n2D(in vec2 sd) {
+    
+    vec2 iComp = floor(sd);
+    						//integer and fractional components
+    vec2 fComp = fract(sd);
+    
+    
+    float a = rand(iComp + vec2(0.0, 0.0));	//
+    float b = rand(iComp + vec2(1.0, 0.0));	// interpolation points
+    float c = rand(iComp + vec2(0.0, 1.0));	// (4 corners)
+    float d = rand(iComp + vec2(1.0, 1.0));	//
+    
+    vec2 fac = smoothstep(0.0, 1.0, fComp);	//interpolation factor
+    
+    //Quad corners interpolation
+    return
+        mix(a, b, fac.x) +
+		
+        	(c - a) * fac.y * (1.0 - fac.x) +
+        
+        		(d - b) * fac.x * fac.y ;
+}
+
+
+//- Fractal Brownian Motion and Motion Pattern
+
+const int OCTAVES = 6;
+
+float fBm(in vec2 sd) {
+    
+    //init values
+    float val = 0.0;
+    float freq = 1.0;
+    float amp = 0.5;
+    
+    float lacunarity = 2.0;
+    float gain = 0.5;
+    
+    //Octaves iterations
+    for(int i = 0; i < OCTAVES; i++) {
+        
+        val += amp * n2D(sd * freq);
+        
+        freq *= lacunarity;
+        amp *= gain;
+    }
+    
+    return val;
+}
+
+
+float mp(in vec2 p, float scale, float time) {
+    
+	p *= scale;
+    float qx = fBm(p + vec2(0.0, 0.0));
+    float qy = fBm(p + vec2(6.8, 2.4));
+    
+    vec2 q = vec2(qx,qy);
+    
+    float tm = 0.008 * time * 1.3;	//time factor
+    
+    float rx = fBm(p + 1.1 * q + vec2(9.5, 9.3) * tm);
+    float ry = fBm(p + 1.5 * q + vec2(7.2, 1.5) * -(tm + 0.002));
+    
+    vec2 r = vec2(rx, ry);
+    
+    return fBm(p + (2.0 * r));
+}"
+nodes/fragment/3/node = SubResource( 2 )
+nodes/fragment/3/position = Vector2( -320, 420 )
+nodes/fragment/3/size = Vector2( 616, 308 )
+nodes/fragment/3/input_ports = "0,1,Vector;1,0,Scale;2,0,Time;"
+nodes/fragment/3/output_ports = "0,1,Color;"
+nodes/fragment/3/expression = "Color = vec3(mp(Vector.xy, Scale, Time));"
+nodes/fragment/4/node = SubResource( 3 )
+nodes/fragment/4/position = Vector2( -700, 420 )
+nodes/fragment/5/node = SubResource( 4 )
+nodes/fragment/5/position = Vector2( -700, 620 )
+nodes/fragment/6/node = SubResource( 5 )
+nodes/fragment/6/position = Vector2( -720, 520 )
+nodes/fragment/connections = PoolIntArray( 3, 0, 0, 0, 4, 0, 3, 0, 5, 0, 3, 2, 6, 0, 3, 1 )
